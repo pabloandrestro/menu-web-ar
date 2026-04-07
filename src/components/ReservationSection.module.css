@@ -1,0 +1,140 @@
+.reservationSection {
+  margin-top: 2.5rem;
+  border: 1px solid rgba(212, 170, 99, 0.2);
+  border-radius: 18px;
+  background: rgba(12, 20, 35, 0.75);
+  padding: 1.8rem;
+  width: 100%;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+}
+
+.reservationHeader h2 {
+  margin: 0;
+  color: var(--r66-gold);
+  font-size: 1.55rem;
+}
+
+.reservationHeader p {
+  margin: 0.35rem 0 0;
+  color: rgba(247, 241, 232, 0.8);
+}
+
+.reservationForm {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  align-items: end;
+}
+
+.reservationField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  color: rgba(247, 241, 232, 0.85);
+  font-size: 0.95rem;
+}
+
+.reservationField span {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.fieldLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+}
+
+.fieldLabelIcon {
+  width: 0.9rem;
+  height: 0.9rem;
+  color: rgba(212, 170, 99, 0.7);
+}
+
+.reservationField input,
+.reservationField select {
+  background: rgba(8, 14, 25, 0.9);
+  color: #f7f1e8;
+  border: 1px solid rgba(212, 170, 99, 0.3);
+  border-radius: 10px;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.95rem;
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.reservationField input:hover,
+.reservationField select:hover {
+  background: rgba(15, 25, 40, 0.9);
+  border-color: rgba(212, 170, 99, 0.5);
+}
+
+.reservationField input:focus,
+.reservationField select:focus {
+  border-color: var(--r66-gold);
+  box-shadow: 0 0 0 2px rgba(212, 170, 99, 0.15);
+}
+
+.reservationSubmit {
+  align-self: stretch;
+  justify-self: center;
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 220px;
+  height: 100%;
+  min-height: 48px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--r66-gold), #e0bf7f);
+  color: #0f1724;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+.reservationSubmit:hover {
+  box-shadow: 0 8px 18px rgba(212, 170, 99, 0.35);
+}
+
+.reservationSubmit:active {
+  transform: translateY(1px);
+}
+
+.reservationSubmit:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.reservationNotice {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid rgba(212, 170, 99, 0.4);
+  background: rgba(212, 170, 99, 0.12);
+  color: #f5ddba;
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .reservationForm {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .reservationSection {
+    padding: 1.4rem;
+  }
+
+  .reservationForm {
+    grid-template-columns: 1fr;
+  }
+}
