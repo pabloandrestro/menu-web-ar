@@ -2,31 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 import Header from "./components/Header";
 import CategoryTabs from "./components/CategoryTabs";
 import MenuSection from "./components/MenuSection";
+import { MenuSkeleton } from "./components/MenuCardSkeleton";
 import ReservationSection from "./components/ReservationSection";
 import Footer from "./components/Footer";
-import {
-  categories as staticCategories,
-  menuItems as staticMenuItems,
-} from "./data/menuData";
 import styles from "./App.module.css";
 
 function App() {
-  const [categories, setCategories] = useState(staticCategories);
-  const [menuItems, setMenuItems] = useState(staticMenuItems);
-  const [activeCategory, setActiveCategory] = useState(staticCategories[0].id);
-
-  useEffect(() => {
+  const [categories, setCategories] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [activeCategory, setActiveCategory] = useState("");
+  const [loading, setLoading] = useState(true);
+ useEffect(() => {
     fetch("/api/menu")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Error al conectar con el servidor");
+        return res.json();
+      })
       .then((data) => {
-        setCategories(data.categories);
-        setMenuItems(data.menuItems);
-        if (data.categories.length > 0) {
+        setCategories(data.categories || []);
+        setMenuItems(data.menuItems || []);
+        
+        if (data.categories && data.categories.length > 0) {
           setActiveCategory(data.categories[0].id);
         }
       })
-      .catch(() => {
-        // Fallback: usa datos estáticos si el servidor no está disponible
+      .catch((err) => {
+        console.error("Error cargando el menú principal:", err);
+      })
+      .finally(() => {
+        setLoading(false);
       });
   }, []);
 
@@ -59,7 +63,11 @@ function App() {
           </aside>
 
           <div className={styles.mainColumn}>
-            <MenuSection title={activeLabel} items={filteredItems} />
+            {loading ? (
+              <MenuSkeleton count={6} />
+            ) : (
+              <MenuSection title={activeLabel} items={filteredItems} />
+            )}
           </div>
 
           <aside className={styles.adColumn} aria-label="Publicidad derecha">

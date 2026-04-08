@@ -20,15 +20,25 @@ export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Data
+  // Datos
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
-  const [activeTab, setActiveTab] = useState("items"); // items | categories | password
+  const [activeTab, setActiveTab] = useState("items"); // items | categorías | contraseña
 
-  // Forms
+  // Formularios
   const [editingItem, setEditingItem] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [filterCategory, setFilterCategory] = useState("");
+
+  const loadData = async () => {
+    try {
+      const [cats, itms] = await Promise.all([getCategories(), getItems()]);
+      setCategories(cats);
+      setItems(itms);
+    } catch {
+      setAuthenticated(false);
+    }
+  };
 
   useEffect(() => {
     verifyToken().then((valid) => {
@@ -38,18 +48,21 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    if (authenticated) loadData();
+    if (!authenticated) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const [cats, itms] = await Promise.all([getCategories(), getItems()]);
+        if (!cancelled) {
+          setCategories(cats);
+          setItems(itms);
+        }
+      } catch {
+        if (!cancelled) setAuthenticated(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [authenticated]);
-
-  async function loadData() {
-    try {
-      const [cats, itms] = await Promise.all([getCategories(), getItems()]);
-      setCategories(cats);
-      setItems(itms);
-    } catch {
-      setAuthenticated(false);
-    }
-  }
 
   function handleLogout() {
     logout();
@@ -123,7 +136,7 @@ export default function AdminDashboard() {
 }
 
 // ====================
-// Items Panel
+// Panel de Platos
 // ====================
 function ItemsPanel({
   items,
@@ -373,7 +386,7 @@ function ItemsPanel({
 }
 
 // ====================
-// Categories Panel
+// Panel de Categorías
 // ====================
 function CategoriesPanel({ categories, editingCategory, setEditingCategory, onReload }) {
   const [form, setForm] = useState({ id: "", label: "" });
