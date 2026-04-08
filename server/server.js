@@ -55,7 +55,7 @@ app.use(express.static(frontendPath));
 
 function initAdmin() {
   if (!fs.existsSync(ADMIN_FILE)) {
-    const defaultEmail = process.env.ADMIN_DEFAULT_EMAIL || "admin@example.com";
+    const defaultEmail = process.env.ADMIN_DEFAULT_EMAIL || "Administrador@Hublab.cl";
     const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD;
 
     if (!defaultPassword) {
