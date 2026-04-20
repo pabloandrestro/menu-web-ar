@@ -1,31 +1,18 @@
 require("dotenv").config();
 
-const guardCloudinaryName = (cloudinaryName) => {
-  if (!cloudinaryName) {
-    throw new Error("Environment variable CLOUDINARY_NAME is required.");
+const requireEnv = (name) => {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Environment variable ${name} is required`);
   }
 
-  return cloudinaryName;
-};
-
-const guardCloudinaryApiKey = (apiKey) => {
-  if (!apiKey) {
-    throw new Error("Environment variable CLOUDINARY_API_KEY is required.");
-  }
-
-  return apiKey;
-};
-
-const guardCloudinarySecret = (secret) => {
-  if (!secret) {
-    throw new Error("Environment variable CLOUDINARY_SECRET is required.");
-  }
-
-  return secret;
+  return value;
 };
 
 module.exports = {
-  cloudinaryName: guardCloudinaryName(process.env.CLOUDINARY_NAME),
-  cloudinaryApiKey: guardCloudinaryApiKey(process.env.CLOUDINARY_API_KEY),
-  cloudinarySecret: guardCloudinarySecret(process.env.CLOUDINARY_SECRET),
+  cloudinaryName: requireEnv("CLOUDINARY_NAME"),
+  cloudinaryApiKey: requireEnv("CLOUDINARY_API_KEY"),
+  cloudinarySecret: requireEnv("CLOUDINARY_SECRET"),
+  cloudinaryModelsFolder: requireEnv("CLOUDINARY_MODELS_FOLDER"),
 };
