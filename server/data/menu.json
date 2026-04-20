@@ -40,6 +40,11 @@
       "src": "/assets/modelosAR/arrozConSalsa.glb"
     },
     {
+      "id": "Plato1",
+      "label": "Plato1",
+      "src": "https://res.cloudinary.com/djkppgn8m/raw/upload/v1776713805/models/zm1gjmtict3klpqqi85b"
+    },
+    {
       "id": "ca2b319c-29ec-4e06-8f9d-234c42fcd6bc",
       "label": "cube",
       "src": "https://res.cloudinary.com/djkppgn8m/raw/upload/v1776713805/models/zm1gjmtict3klpqqi85b"
