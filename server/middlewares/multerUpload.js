@@ -1,4 +1,5 @@
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
+const { cloudinaryModelsFolder } = require("../config/guardEnv");
 const cloudinary = require("../config/cloudinary");
 const multer = require("multer");
 
@@ -6,7 +7,7 @@ const storageModels = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
     return {
-      folder: "models",
+      folder: cloudinaryModelsFolder,
       resource_type: "raw",
       public_id: `${Date.now()}-${file.originalname}`,
       format: file.originalname.split(".").pop(),
