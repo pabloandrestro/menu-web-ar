@@ -10,6 +10,7 @@ const rateLimit = require("express-rate-limit");
 const multer = require("multer");
 const crypto = require("crypto");
 const { uploadModels } = require("./middlewares/multerUpload");
+const { uploadModelToCloudinary } = require("./services/uploadModelToCloudinary");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -315,26 +316,56 @@ app.get("/api/auth/verify", authMiddleware, (req, res) => {
 // RUTAS DE ADMIN (protegidas)
 // ========================
 
-app.post("/api/admin/upload-models", authMiddleware, uploadModels.single("model"), (req, res) => {
-  try {
-    const file = req.file;
+app.post(
+  "/api/admin/upload-models",
+  authMiddleware,
+  uploadModels.single("model"),
+  async (req, res) => {
+    try {
+      const file = req.file;
+      const { label } = req.body;
+      const id = crypto.randomUUID();
 
-    if (!file) {
-      return res.status(400).json({ error: "Es necesario cargar el modelo 3D" });
+      if (!file) {
+        return res.status(400).json({ error: "Es necesario cargar el modelo 3D" });
+      }
+
+      if (!label.trim()) {
+        return res.status(400).json({ error: "Es necesario asignar un nombre" });
+      }
+
+      // TODO: guardar datos en base de datos o en archivo json
+      const data = readData();
+
+      const exists = data.modelos.some((model) => model.id === id || model.label === label.trim());
+
+      // verificar que no existe un modelo con ese nombre ni el id
+      if (exists) {
+        return res.status(400).json({ error: "Ya existe un modelo con este nombre o id" });
+      }
+
+      const result = await uploadModelToCloudinary(file.buffer);
+
+      const newModel = {
+        id,
+        label: label.trim(),
+        src: result.secure_url,
+      };
+
+      data.modelos.push(newModel);
+
+      writeData(data);
+
+      return res.status(201).json({
+        message: "Modelo subido correctamente",
+        ...newModel,
+      });
+    } catch (err) {
+      console.log(err);
+      return res.status(500).json({ error: "Error al subir el archivo" });
     }
-
-    // TODO: guardar datos en base de datos o en archivo json
-
-    return res.json({
-      message: "Modelo subido correctamente",
-      url: file.path,
-      public_id: file.filename,
-      size: file.size,
-    });
-  } catch {
-    return res.status(500).json({ error: "Error al subir el archivo" });
-  }
-});
+  },
+);
 
 // --- Upload de Imágenes ---
 app.post("/api/admin/upload-image", authMiddleware, (req, res) => {
