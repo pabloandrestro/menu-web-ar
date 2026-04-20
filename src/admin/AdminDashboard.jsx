@@ -202,7 +202,7 @@ function ImageModal({ isOpen, imagenes, onSelectImage, onClose }) {
             className={styles.imageModalClose}
             onClick={onClose}
             type="button"
-          >
+            >
             ✕
           </button>
         </div>
@@ -704,7 +704,7 @@ function ItemsPanel({
                 <td className={styles.mono}>{item.id}</td>
                 <td>{item.name}</td>
                 <td>{item.category}</td>
-                <td>{item.price}</td>
+                <td>${item.price}</td>
                 <td>
                   {item.ingredients && item.ingredients.length > 0 ? item.ingredients.length : "—"}
                 </td>
