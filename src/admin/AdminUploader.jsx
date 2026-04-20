@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { createImagenAsset, createModeloAsset } from "./api";
+import styles from "./admin.module.css";
 
 const CLOUDINARY_CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "dxpam0kqa";
 const CLOUDINARY_UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "HublabMenuWebAr";
@@ -152,160 +153,109 @@ export default function AdminUploader({ onUploadComplete }) {
   };
 
   return (
-    <div style={{ display: "grid", gap: "1rem", maxWidth: 720 }}>
-      <h2 style={{ margin: 0, color: "#d4aa63" }}>Subir Archivos a Cloudinary</h2>
+    <div className={styles.uploaderWrapper}>
+      <div className={styles.uploaderContent}>
+        <div className={styles.uploaderSection}>
+          <h3 className={styles.uploaderTitle}>Imagen del menú</h3>
 
-      <div style={{ display: "grid", gap: "0.75rem" }}>
-        <h3 style={{ margin: 0, color: "#f7f1e8", fontSize: "1rem" }}>Imagen del menú</h3>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleImageFileChange}
+            style={{ display: "none" }}
+          />
 
-        <input
-          ref={imageInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleImageFileChange}
-          style={{ display: "none" }}
-        />
+          <div className={styles.uploaderButtonGroup}>
+            <button
+              type="button"
+              onClick={() => imageInputRef.current?.click()}
+              className={styles.btnSecondary}
+            >
+              Elegir imagen
+            </button>
 
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => imageInputRef.current?.click()}
-            style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              color: "#f7f1e8",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-              borderRadius: 8,
-              padding: "0.65rem 1rem",
-              cursor: "pointer",
-            }}
-          >
-            Elegir imagen
-          </button>
+            <button
+              type="button"
+              onClick={handleImageUpload}
+              disabled={imageUploading || !imageFile}
+              className={styles.btnPrimary}
+              style={{ opacity: imageUploading || !imageFile ? 0.6 : 1 }}
+            >
+              {imageUploading ? "Subiendo..." : "Subir imagen"}
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={handleImageUpload}
-            disabled={imageUploading || !imageFile}
-            style={{
-              background: "linear-gradient(135deg, #d4aa63, #c49a52)",
-              color: "#0f1724",
-              border: "none",
-              borderRadius: 8,
-              padding: "0.65rem 1rem",
-              fontWeight: 700,
-              cursor: imageUploading || !imageFile ? "not-allowed" : "pointer",
-              opacity: imageUploading || !imageFile ? 0.6 : 1,
-            }}
-          >
-            {imageUploading ? "Subiendo..." : "Subir imagen"}
-          </button>
+          {imageFile && (
+            <p className={styles.fileInfo}>
+              {imageFile.name} ({(imageFile.size / 1024).toFixed(1)} KB)
+            </p>
+          )}
+
+          {imageURL && (
+            <div className={styles.uploadSuccess}>
+              <p className={styles.successText}>Imagen subida correctamente.</p>
+              <a href={imageURL} target="_blank" rel="noreferrer" className={styles.urlLink}>
+                {imageURL}
+              </a>
+              <img src={imageURL} alt="Imagen subida" className={styles.previewImage} />
+            </div>
+          )}
         </div>
 
-        {imageFile && (
-          <p style={{ margin: 0, color: "rgba(255,255,255,0.8)" }}>
-            Imagen seleccionada: {imageFile.name} ({(imageFile.size / 1024).toFixed(1)} KB)
-          </p>
-        )}
+        <div className={styles.uploaderDivider} />
 
-        {imageURL && (
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            <p style={{ margin: 0, color: "#6ee7a7" }}>Imagen subida correctamente.</p>
-            <a
-              href={imageURL}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#7cc7ff", wordBreak: "break-all" }}
+        <div className={styles.uploaderSection}>
+          <h3 className={styles.uploaderTitle}>Modelo AR (.glb)</h3>
+
+          <input
+            ref={modelInputRef}
+            type="file"
+            accept=".glb,model/gltf-binary"
+            onChange={handleModelFileChange}
+            style={{ display: "none" }}
+          />
+
+          <div className={styles.uploaderButtonGroup}>
+            <button
+              type="button"
+              onClick={() => modelInputRef.current?.click()}
+              className={styles.btnSecondary}
             >
-              {imageURL}
-            </a>
-            <img
-              src={imageURL}
-              alt="Imagen subida"
-              style={{
-                maxWidth: 320,
-                width: "100%",
-                borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.2)",
-              }}
-            />
+              Elegir modelo .glb
+            </button>
+
+            <button
+              type="button"
+              onClick={handleModelUpload}
+              disabled={modelUploading || !modelFile}
+              className={styles.btnPrimary}
+              style={{ opacity: modelUploading || !modelFile ? 0.6 : 1 }}
+            >
+              {modelUploading ? "Subiendo..." : "Subir modelo AR"}
+            </button>
           </div>
-        )}
-      </div>
 
-      <div style={{ height: 1, background: "rgba(255,255,255,0.15)" }} />
+          {modelFile && (
+            <p className={styles.fileInfo}>
+              {modelFile.name} ({(modelFile.size / 1024).toFixed(1)} KB)
+            </p>
+          )}
 
-      <div style={{ display: "grid", gap: "0.75rem" }}>
-        <h3 style={{ margin: 0, color: "#f7f1e8", fontSize: "1rem" }}>Modelo AR (.glb)</h3>
+          <p className={styles.modelNote}>Acepta solo archivos .glb</p>
 
-        <input
-          ref={modelInputRef}
-          type="file"
-          accept=".glb,model/gltf-binary"
-          onChange={handleModelFileChange}
-          style={{ display: "none" }}
-        />
-
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <button
-            type="button"
-            onClick={() => modelInputRef.current?.click()}
-            style={{
-              background: "rgba(255, 255, 255, 0.08)",
-              color: "#f7f1e8",
-              border: "1px solid rgba(255, 255, 255, 0.15)",
-              borderRadius: 8,
-              padding: "0.65rem 1rem",
-              cursor: "pointer",
-            }}
-          >
-            Elegir modelo .glb
-          </button>
-
-          <button
-            type="button"
-            onClick={handleModelUpload}
-            disabled={modelUploading || !modelFile}
-            style={{
-              background: "linear-gradient(135deg, #d4aa63, #c49a52)",
-              color: "#0f1724",
-              border: "none",
-              borderRadius: 8,
-              padding: "0.65rem 1rem",
-              fontWeight: 700,
-              cursor: modelUploading || !modelFile ? "not-allowed" : "pointer",
-              opacity: modelUploading || !modelFile ? 0.6 : 1,
-            }}
-          >
-            {modelUploading ? "Subiendo..." : "Subir modelo AR"}
-          </button>
+          {modelURL && (
+            <div className={styles.uploadSuccess}>
+              <p className={styles.successText}>Modelo .glb subido correctamente.</p>
+              <a href={modelURL} target="_blank" rel="noreferrer" className={styles.urlLink}>
+                {modelURL}
+              </a>
+            </div>
+          )}
         </div>
-
-        {modelFile && (
-          <p style={{ margin: 0, color: "rgba(255,255,255,0.8)" }}>
-            Modelo seleccionado: {modelFile.name} ({(modelFile.size / 1024).toFixed(1)} KB)
-          </p>
-        )}
-
-        <p style={{ margin: 0, color: "rgba(212, 170, 99, 0.8)", fontSize: "0.85rem" }}>
-          Acepta solo archivos .glb
-        </p>
-
-        {modelURL && (
-          <div style={{ display: "grid", gap: "0.5rem" }}>
-            <p style={{ margin: 0, color: "#6ee7a7" }}>Modelo .glb subido correctamente.</p>
-            <a
-              href={modelURL}
-              target="_blank"
-              rel="noreferrer"
-              style={{ color: "#7cc7ff", wordBreak: "break-all" }}
-            >
-              {modelURL}
-            </a>
-          </div>
-        )}
       </div>
 
-      {error && <p style={{ margin: 0, color: "#ff6b6b" }}>{error}</p>}
+      {error && <p className={styles.uploaderError}>{error}</p>}
     </div>
   );
 }
