@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
 const multer = require("multer");
 const crypto = require("crypto");
+const { uploadModels } = require("./middlewares/multerUpload");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -165,7 +166,7 @@ function initAdmin() {
 
     if (!defaultPassword) {
       console.error(
-        "ADMIN_DEFAULT_PASSWORD env var is required to create the initial admin account."
+        "ADMIN_DEFAULT_PASSWORD env var is required to create the initial admin account.",
       );
       console.error("Set it in your .env file. See .env.example for reference.");
       process.exit(1);
@@ -174,7 +175,7 @@ function initAdmin() {
     const hash = bcrypt.hashSync(defaultPassword, 10);
     fs.writeFileSync(
       ADMIN_FILE,
-      JSON.stringify({ username: defaultEmail, password: hash }, null, 2)
+      JSON.stringify({ username: defaultEmail, password: hash }, null, 2),
     );
     console.log(`Admin created: ${defaultEmail} (change password after first login)`);
   }
@@ -314,6 +315,27 @@ app.get("/api/auth/verify", authMiddleware, (req, res) => {
 // RUTAS DE ADMIN (protegidas)
 // ========================
 
+app.post("/api/admin/upload-models", authMiddleware, uploadModels.single("model"), (req, res) => {
+  try {
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "Es necesario cargar el modelo 3D" });
+    }
+
+    // TODO: guardar datos en base de datos o en archivo json
+
+    return res.json({
+      message: "Modelo subido correctamente",
+      url: file.path,
+      public_id: file.filename,
+      size: file.size,
+    });
+  } catch {
+    return res.status(500).json({ error: "Error al subir el archivo" });
+  }
+});
+
 // --- Upload de Imágenes ---
 app.post("/api/admin/upload-image", authMiddleware, (req, res) => {
   upload.single("image")(req, res, (err) => {
@@ -350,7 +372,9 @@ app.post("/api/admin/modelos", authMiddleware, (req, res) => {
     typeof (label || name || modeloId) === "string" ? (label || name || modeloId).trim() : "";
 
   if (!isValidModeloId(modeloId)) {
-    return res.status(400).json({ error: "id de modelo invalido (solo letras, numeros, guion y guion bajo)" });
+    return res
+      .status(400)
+      .json({ error: "id de modelo invalido (solo letras, numeros, guion y guion bajo)" });
   }
 
   if (!isNonEmptyString(modeloLabel)) {
@@ -394,7 +418,9 @@ app.post("/api/admin/imagenes", authMiddleware, (req, res) => {
     typeof (label || name || imagenId) === "string" ? (label || name || imagenId).trim() : "";
 
   if (!isValidId(imagenId)) {
-    return res.status(400).json({ error: "id de imagen invalido (solo letras, numeros, guion y guion bajo)" });
+    return res
+      .status(400)
+      .json({ error: "id de imagen invalido (solo letras, numeros, guion y guion bajo)" });
   }
 
   if (!isNonEmptyString(imagenLabel)) {
@@ -434,7 +460,9 @@ app.get("/api/admin/categories", authMiddleware, (_req, res) => {
 app.post("/api/admin/categories", authMiddleware, (req, res) => {
   const { id, label } = req.body;
   if (!isValidId(id)) {
-    return res.status(400).json({ error: "id invalido (solo letras, numeros, guion y guion bajo)" });
+    return res
+      .status(400)
+      .json({ error: "id invalido (solo letras, numeros, guion y guion bajo)" });
   }
   if (!isNonEmptyString(label)) {
     return res.status(400).json({ error: "label es requerido" });
@@ -484,7 +512,9 @@ app.get("/api/admin/items", authMiddleware, (_req, res) => {
 app.post("/api/admin/items", authMiddleware, (req, res) => {
   const { id, category, name, description, price, image, modelAR, ingredients } = req.body;
   if (!isValidId(id)) {
-    return res.status(400).json({ error: "id invalido (solo letras, numeros, guion y guion bajo)" });
+    return res
+      .status(400)
+      .json({ error: "id invalido (solo letras, numeros, guion y guion bajo)" });
   }
   if (!isNonEmptyString(category)) {
     return res.status(400).json({ error: "category es requerido" });
