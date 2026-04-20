@@ -38,6 +38,28 @@ export async function verifyToken() {
   return res.ok;
 }
 
+// --- Upload de Imágenes ---
+export async function uploadImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const token = localStorage.getItem("admin_token");
+  const res = await fetch(`${API_URL}/admin/upload-image`, {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Error al subir imagen");
+  }
+
+  return res.json();
+}
+
 // --- Categorías ---
 export async function getCategories() {
   const res = await fetch(`${API_URL}/admin/categories`, { headers: getHeaders() });
@@ -87,6 +109,45 @@ export async function deleteCategory(id) {
 export async function getItems() {
   const res = await fetch(`${API_URL}/admin/items`, { headers: getHeaders() });
   if (!res.ok) throw new Error("Error al obtener items");
+  return res.json();
+}
+
+// --- Modelos AR ---
+export async function getModelos() {
+  const res = await fetch(`${API_URL}/modelos`);
+  if (!res.ok) throw new Error("Error al obtener modelos");
+  return res.json();
+}
+
+export async function getImagenes() {
+  const res = await fetch(`${API_URL}/imagenes`);
+  if (!res.ok) throw new Error("Error al obtener imagenes");
+  return res.json();
+}
+
+export async function createModeloAsset(payload) {
+  const res = await fetch(`${API_URL}/admin/modelos`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Error al guardar modelo");
+  }
+  return res.json();
+}
+
+export async function createImagenAsset(payload) {
+  const res = await fetch(`${API_URL}/admin/imagenes`, {
+    method: "POST",
+    headers: getHeaders(),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Error al guardar imagen");
+  }
   return res.json();
 }
 

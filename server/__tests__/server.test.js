@@ -14,12 +14,12 @@ const DATA_FILE = path.join(__dirname, "..", "data", "menu.json");
 let originalAdminData;
 let originalMenuData;
 
-beforeAll(() => {
-  if (fs.existsSync(ADMIN_FILE)) {
-    originalAdminData = fs.readFileSync(ADMIN_FILE, "utf-8");
-  }
+if (fs.existsSync(ADMIN_FILE)) {
+  originalAdminData = fs.readFileSync(ADMIN_FILE, "utf-8");
+}
+if (fs.existsSync(DATA_FILE)) {
   originalMenuData = fs.readFileSync(DATA_FILE, "utf-8");
-});
+}
 
 afterAll(() => {
   // Restaurar datos originales
@@ -60,6 +60,26 @@ describe("API Endpoints", () => {
   describe("GET /api/categories", () => {
     it("returns categories array", async () => {
       const res = await request(app).get("/api/categories");
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+    });
+  });
+
+  describe("GET /api/modelos", () => {
+    it("returns modelos array", async () => {
+      const res = await request(app).get("/api/modelos");
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      if (res.body.length > 0) {
+        expect(res.body[0]).toHaveProperty("id");
+        expect(res.body[0]).toHaveProperty("label");
+      }
+    });
+  });
+
+  describe("GET /api/imagenes", () => {
+    it("returns imagenes array", async () => {
+      const res = await request(app).get("/api/imagenes");
       expect(res.status).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
     });
@@ -121,7 +141,7 @@ describe("API Endpoints", () => {
         expect(res.status).toBe(400);
       });
 
-      it("rejects item with path traversal in modelAR", async () => {
+      it("rejects item with invalid modelAR id", async () => {
         const res = await request(app)
           .post("/api/admin/items")
           .set("Authorization", `Bearer ${token}`)
@@ -130,12 +150,12 @@ describe("API Endpoints", () => {
             category: "entradas",
             name: "Test",
             price: "$1000",
-            modelAR: "/assets/modelosAR/../../etc/passwd",
+            modelAR: "../../etc/passwd",
           });
         expect(res.status).toBe(400);
       });
 
-      it("accepts item with valid modelAR path", async () => {
+      it("accepts item with valid modelAR id", async () => {
         const res = await request(app)
           .post("/api/admin/items")
           .set("Authorization", `Bearer ${token}`)
@@ -144,10 +164,44 @@ describe("API Endpoints", () => {
             category: "entradas",
             name: "Test Item",
             price: "$1000",
-            modelAR: "/assets/modelosAR/Plato3.glb",
+            modelAR: "Plato1",
           });
         // Puede ser 201 o 409 si el item ya existe
         expect([201, 409]).toContain(res.status);
+      });
+
+      it("registers a Cloudinary model in /api/admin/modelos", async () => {
+        const res = await request(app)
+          .post("/api/admin/modelos")
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            id: "test_model_cloudinary",
+            label: "Modelo Test Cloudinary",
+            url: "https://res.cloudinary.com/dxpam0kqa/raw/upload/v1/menu/models/test-model.glb",
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body).toMatchObject({
+          id: "test_model_cloudinary",
+          label: "Modelo Test Cloudinary",
+        });
+      });
+
+      it("registers a Cloudinary image in /api/admin/imagenes", async () => {
+        const res = await request(app)
+          .post("/api/admin/imagenes")
+          .set("Authorization", `Bearer ${token}`)
+          .send({
+            id: "test_image_cloudinary",
+            label: "Imagen Test Cloudinary",
+            url: "https://res.cloudinary.com/dxpam0kqa/image/upload/v1/menu/images/test-image.jpg",
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body).toMatchObject({
+          id: "test_image_cloudinary",
+          label: "Imagen Test Cloudinary",
+        });
       });
     });
   });

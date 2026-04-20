@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import {
   getCategories,
   getItems,
+  getModelos,
+  getImagenes,
   createItem,
   updateItem,
   deleteItem,
@@ -13,6 +15,7 @@ import {
   verifyToken,
 } from "./api";
 import AdminLogin from "./AdminLogin";
+import AdminUploader from "./AdminUploader";
 import styles from "./admin.module.css";
 
 export default function AdminDashboard() {
@@ -20,21 +23,28 @@ export default function AdminDashboard() {
   const [authenticated, setAuthenticated] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Datos
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
-  const [activeTab, setActiveTab] = useState("items"); // items | categorías | contraseña
+  const [modelos, setModelos] = useState([]);
+  const [imagenes, setImagenes] = useState([]);
+  const [activeTab, setActiveTab] = useState("items");
 
-  // Formularios
   const [editingItem, setEditingItem] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [filterCategory, setFilterCategory] = useState("");
 
   const loadData = async () => {
     try {
-      const [cats, itms] = await Promise.all([getCategories(), getItems()]);
+      const [cats, itms, mods, imgs] = await Promise.all([
+        getCategories(),
+        getItems(),
+        getModelos(),
+        getImagenes(),
+      ]);
       setCategories(cats);
       setItems(itms);
+      setModelos(mods);
+      setImagenes(imgs);
     } catch {
       setAuthenticated(false);
     }
@@ -52,10 +62,17 @@ export default function AdminDashboard() {
     let cancelled = false;
     (async () => {
       try {
-        const [cats, itms] = await Promise.all([getCategories(), getItems()]);
+        const [cats, itms, mods, imgs] = await Promise.all([
+          getCategories(),
+          getItems(),
+          getModelos(),
+          getImagenes(),
+        ]);
         if (!cancelled) {
           setCategories(cats);
           setItems(itms);
+          setModelos(mods);
+          setImagenes(imgs);
         }
       } catch {
         if (!cancelled) setAuthenticated(false);
@@ -70,7 +87,7 @@ export default function AdminDashboard() {
   }
 
   if (checking) {
-    return <div className={styles.loading}>Verificando sesión...</div>;
+    return <div className={styles.loading}>Verificando sesion...</div>;
   }
 
   if (!authenticated) {
@@ -87,11 +104,11 @@ export default function AdminDashboard() {
         <div className={styles.adminHeaderLeft}>
           <h1 className={styles.adminBrand}>Route 66 — Admin</h1>
           <button className={styles.linkBtn} onClick={() => navigate("/")}>
-            ← Ver Menú
+            ← Ver Menu
           </button>
         </div>
         <button className={styles.btnDanger} onClick={handleLogout}>
-          Cerrar Sesión
+          Cerrar Sesion
         </button>
       </header>
 
@@ -100,13 +117,19 @@ export default function AdminDashboard() {
           className={`${styles.navBtn} ${activeTab === "items" ? styles.navActive : ""}`}
           onClick={() => setActiveTab("items")}
         >
-          Platos del Menú
+          Platos del Menu
         </button>
         <button
           className={`${styles.navBtn} ${activeTab === "categories" ? styles.navActive : ""}`}
           onClick={() => setActiveTab("categories")}
         >
-          Categorías
+          Categorias
+        </button>
+        <button
+          className={`${styles.navBtn} ${activeTab === "upload" ? styles.navActive : ""}`}
+          onClick={() => setActiveTab("upload")}
+        >
+          Subir Archivos
         </button>
       </nav>
 
@@ -114,7 +137,10 @@ export default function AdminDashboard() {
         {activeTab === "items" && (
           <ItemsPanel
             items={filteredItems}
+            allItems={items}
             categories={categories}
+            modelos={modelos}
+            imagenes={imagenes}
             filterCategory={filterCategory}
             setFilterCategory={setFilterCategory}
             editingItem={editingItem}
@@ -130,17 +156,45 @@ export default function AdminDashboard() {
             onReload={loadData}
           />
         )}
+        {activeTab === "upload" && (
+          <AdminUploader
+            onUploadComplete={async (asset, type) => {
+              console.log(`${type === "model" ? "Modelo AR" : "Imagen"} subida:`, asset);
+              await loadData();
+            }}
+          />
+        )}
       </main>
     </div>
   );
 }
 
-// ====================
-// Panel de Platos
-// ====================
+function SuccessModal({ isOpen, message, onClose }) {
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(onClose, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <div className={styles.modalIcon}>✓</div>
+        <p className={styles.modalText}>{message}</p>
+      </div>
+    </div>
+  );
+}
+
 function ItemsPanel({
   items,
+  allItems,
   categories,
+  modelos,
+  imagenes,
   filterCategory,
   setFilterCategory,
   editingItem,
@@ -154,15 +208,22 @@ function ItemsPanel({
     name: "",
     description: "",
     price: "",
-    image: "/assets/IMG/comida.jfif",
-    modelAR: "/assets/modelosAR/Plato3.glb",
+    image: "",
+    modelAR: "Plato3",
+    ingredients: [],
   });
+  const [newIngredient, setNewIngredient] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const itemsList = allItems || items;
 
   useEffect(() => {
     if (editingItem) {
-      setForm({ ...editingItem, modelAR: editingItem.modelAR || "" });
+      setForm({ ...editingItem, modelAR: editingItem.modelAR || "", ingredients: editingItem.ingredients || [] });
     } else {
       setForm({
         id: "",
@@ -170,37 +231,153 @@ function ItemsPanel({
         name: "",
         description: "",
         price: "",
-        image: "/assets/IMG/comida.jfif",
-        modelAR: "/assets/modelosAR/Plato3.glb",
+        image: "",
+        modelAR: "Plato3",
+        ingredients: [],
       });
     }
+    setFieldErrors({});
+    setNewIngredient("");
   }, [editingItem, categories]);
 
+  const getFieldError = (name, value) => {
+    if (name === "id") {
+      if (!value.trim()) return "ID es requerido";
+      if (!/^[a-zA-Z0-9_-]+$/.test(value)) return "Solo letras, numeros, guion y guion bajo";
+      if (!editingItem && itemsList.some((item) => item.id === value)) return "Este ID ya existe";
+    }
+
+    if (name === "category") {
+      if (!value) return "Categoria es requerida";
+    }
+
+    if (name === "name") {
+      if (!value.trim()) return "Nombre es requerido";
+      if (!/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]+$/.test(value)) return "Solo letras y espacios";
+    }
+
+    if (name === "price") {
+      if (!value.trim()) return "Precio es requerido";
+      if (!/^[\d.]+$/.test(value)) return "Solo numeros y punto";
+      if (parseFloat(value) <= 0) return "Precio debe ser mayor a 0";
+    }
+
+    if (name === "description") {
+      if (!value.trim()) return "Descripcion es requerida";
+      if (value.length > 500) return "Maximo 500 caracteres";
+    }
+
+    if (name === "image") {
+      if (!value) return "Imagen es requerida";
+    }
+
+    return "";
+  };
+
+  const validateAll = () => {
+    const errors = {};
+    ["id", "category", "name", "price", "description", "image"].forEach((field) => {
+      const err = getFieldError(field, form[field] || "");
+      if (err) errors[field] = err;
+    });
+    return errors;
+  };
+
+  const isFormValid = () => {
+    const errors = validateAll();
+    return Object.keys(errors).length === 0;
+  };
+
   const handleChange = (e) => {
-    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+
+    if (name === "name") {
+      if (value !== "" && !/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]*$/.test(value)) return;
+    }
+
+    if (name === "price") {
+      if (value !== "" && !/^[\d.]*$/.test(value)) return;
+    }
+
+    if (name === "description") {
+      if (value.length > 500) return;
+    }
+
+    setForm((f) => ({ ...f, [name]: value }));
+
+    const fieldError = getFieldError(name, value);
+    setFieldErrors((errs) => ({ ...errs, [name]: fieldError }));
+  };
+
+  const handleAddIngredient = () => {
+    if (newIngredient.trim() && !form.ingredients.includes(newIngredient.trim())) {
+      setForm((f) => ({
+        ...f,
+        ingredients: [...f.ingredients, newIngredient.trim()],
+      }));
+      setNewIngredient("");
+    }
+  };
+
+  const handleRemoveIngredient = (index) => {
+    setForm((f) => ({
+      ...f,
+      ingredients: f.ingredients.filter((_, i) => i !== index),
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    const errors = validateAll();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingItem) {
         await updateItem(editingItem.id, form);
+        setSuccessMessage("EL PLATO SE HA ACTUALIZADO CON EXITO");
       } else {
         await createItem(form);
+        setSuccessMessage("EL PLATO SE HA AGREGADO CON EXITO");
       }
+      setShowSuccessModal(true);
       setEditingItem(null);
-      await onReload();
+      
+      setForm({
+        id: "",
+        category: categories[0]?.id || "",
+        name: "",
+        description: "",
+        price: "",
+        image: "",
+        modelAR: "Plato3",
+        ingredients: [],
+      });
+      setFieldErrors({});
+      setNewIngredient("");
+      setSaving(false);
+
+      setTimeout(async () => {
+        try {
+          await onReload();
+        } catch (reloadErr) {
+          console.error("Error al recargar datos:", reloadErr);
+        }
+      }, 1500);
+
     } catch (err) {
-      setError(err.message);
-    } finally {
+      setError(err.message || "Error al guardar el plato");
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar este plato?")) return;
+    if (!window.confirm("Eliminar este plato?")) return;
     try {
       await deleteItem(id);
       await onReload();
@@ -209,8 +386,17 @@ function ItemsPanel({
     }
   };
 
+  const formValid = isFormValid();
+  const selectedImageInLibrary = imagenes.some((img) => img.src === form.image);
+
   return (
     <div>
+      <SuccessModal
+        isOpen={showSuccessModal}
+        message={successMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
       <div className={styles.panelHeader}>
         <h2>{editingItem ? "Editar Plato" : "Agregar Plato"}</h2>
       </div>
@@ -221,7 +407,7 @@ function ItemsPanel({
         <label className={styles.label}>
           ID
           <input
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.id ? styles.inputError : ""}`}
             name="id"
             value={form.id}
             onChange={handleChange}
@@ -229,12 +415,13 @@ function ItemsPanel({
             disabled={!!editingItem}
             placeholder="ej: ap-7"
           />
+          {fieldErrors.id && <span className={styles.helperError}>{fieldErrors.id}</span>}
         </label>
 
         <label className={styles.label}>
-          Categoría
+          Categoria
           <select
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.category ? styles.inputError : ""}`}
             name="category"
             value={form.category}
             onChange={handleChange}
@@ -247,68 +434,178 @@ function ItemsPanel({
               </option>
             ))}
           </select>
+          {fieldErrors.category && <span className={styles.helperError}>{fieldErrors.category}</span>}
         </label>
 
         <label className={styles.label}>
           Nombre
           <input
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.name ? styles.inputError : ""}`}
             name="name"
             value={form.name}
             onChange={handleChange}
             required
             placeholder="Nombre del plato"
           />
+          {fieldErrors.name ? (
+            <span className={styles.helperError}>{fieldErrors.name}</span>
+          ) : (
+            <span className={styles.helperText}>Solo letras y espacios</span>
+          )}
         </label>
 
         <label className={styles.label}>
           Precio
           <input
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.price ? styles.inputError : ""}`}
             name="price"
             value={form.price}
             onChange={handleChange}
             required
             placeholder="$12.990"
           />
+          {fieldErrors.price ? (
+            <span className={styles.helperError}>{fieldErrors.price}</span>
+          ) : (
+            <span className={styles.helperText}>Solo numeros y punto</span>
+          )}
         </label>
 
         <label className={`${styles.label} ${styles.fullWidth}`}>
-          Descripción
+          Descripcion
           <textarea
-            className={styles.textarea}
+            className={`${styles.textarea} ${fieldErrors.description ? styles.inputError : ""}`}
             name="description"
             value={form.description}
             onChange={handleChange}
             rows={2}
-            placeholder="Descripción del plato..."
+            required
+            placeholder="Descripcion del plato..."
           />
+          <div className={styles.helperRow}>
+            {fieldErrors.description ? (
+              <span className={styles.helperError}>{fieldErrors.description}</span>
+            ) : (
+              <span className={styles.helperText}>{form.description.length}/500 caracteres</span>
+            )}
+          </div>
         </label>
 
-        <label className={`${styles.label} ${styles.fullWidth}`}>
-          Imagen (ruta)
-          <input
-            className={styles.input}
+        <div className={`${styles.label} ${styles.fullWidth}`}>
+          <span>Imagen</span>
+
+          <select
+            className={`${styles.input} ${fieldErrors.image ? styles.inputError : ""}`}
             name="image"
             value={form.image}
             onChange={handleChange}
-            placeholder="/assets/IMG/comida.jfif"
-          />
-        </label>
+            disabled={saving}
+          >
+            <option value="">Seleccionar imagen guardada...</option>
+            {form.image && !selectedImageInLibrary && (
+              <option value={form.image}>Imagen actual (no registrada)</option>
+            )}
+            {imagenes.map((img) => (
+              <option key={img.id} value={img.src}>
+                {img.label}
+              </option>
+            ))}
+          </select>
+
+          {fieldErrors.image ? (
+            <span className={styles.helperError}>{fieldErrors.image}</span>
+          ) : (
+            <span className={styles.helperText}>
+              Selecciona una imagen ya subida desde la pestaña "Subir Archivos".
+            </span>
+          )}
+
+          {imagenes.length === 0 && (
+            <span className={styles.helperError}>
+              No hay imágenes registradas. Primero sube una imagen en "Subir Archivos".
+            </span>
+          )}
+        </div>
+
+        {form.image && (form.image.startsWith("/assets/") || form.image.startsWith("https://")) && (
+          <div className={`${styles.fullWidth} ${styles.imagePreviewContainer}`}>
+            <img 
+              src={form.image} 
+              alt="Vista previa" 
+              className={styles.imagePreview}
+            />
+          </div>
+        )}
 
         <label className={`${styles.label} ${styles.fullWidth}`}>
-          Modelo AR (ruta .glb)
-          <input
+          Ingredientes (opcional)
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <input
+              type="text"
+              className={styles.input}
+              value={newIngredient}
+              onChange={(e) => setNewIngredient(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleAddIngredient();
+                }
+              }}
+              placeholder="Ej: Tomate, Cebolla..."
+              style={{ flex: 1 }}
+            />
+            <button
+              type="button"
+              className={styles.btnSecondary}
+              onClick={handleAddIngredient}
+              style={{ padding: "0.65rem 1rem", whiteSpace: "nowrap" }}
+            >
+              +
+            </button>
+          </div>
+        </label>
+
+        {form.ingredients.length > 0 && (
+          <div className={`${styles.ingredientsList} ${styles.fullWidth}`}>
+            {form.ingredients.map((ing, idx) => (
+              <div key={idx} className={styles.ingredientItem}>
+                <span className={styles.ingredientBadge}>{ing}</span>
+                <button
+                  type="button"
+                  className={styles.btnSmallDanger}
+                  onClick={() => handleRemoveIngredient(idx)}
+                  style={{ marginLeft: "auto" }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <label className={`${styles.label} ${styles.fullWidth}`}>
+          Modelo AR
+          <select
             className={styles.input}
             name="modelAR"
             value={form.modelAR}
             onChange={handleChange}
-            placeholder="/assets/modelosAR/Plato3.glb"
-          />
+          >
+            <option value="">Sin modelo</option>
+            {modelos.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
         </label>
 
         <div className={styles.formActions}>
-          <button className={styles.btnPrimary} type="submit" disabled={saving}>
+          <button
+            className={styles.btnPrimary}
+            type="submit"
+            disabled={saving || !formValid}
+          >
             {saving ? "Guardando..." : editingItem ? "Actualizar" : "Crear Plato"}
           </button>
           {editingItem && (
@@ -330,7 +627,7 @@ function ItemsPanel({
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
         >
-          <option value="">Todas las categorías</option>
+          <option value="">Todas las categorias</option>
           {categories.map((c) => (
             <option key={c.id} value={c.id}>
               {c.label}
@@ -345,8 +642,9 @@ function ItemsPanel({
             <tr>
               <th>ID</th>
               <th>Nombre</th>
-              <th>Categoría</th>
+              <th>Categoria</th>
               <th>Precio</th>
+              <th>Ingredientes</th>
               <th>Modelo AR</th>
               <th>Acciones</th>
             </tr>
@@ -358,6 +656,7 @@ function ItemsPanel({
                 <td>{item.name}</td>
                 <td>{item.category}</td>
                 <td>{item.price}</td>
+                <td>{item.ingredients && item.ingredients.length > 0 ? item.ingredients.length : "—"}</td>
                 <td className={styles.mono}>{item.modelAR ? "✓" : "—"}</td>
                 <td>
                   <button
@@ -385,13 +684,13 @@ function ItemsPanel({
   );
 }
 
-// ====================
-// Panel de Categorías
-// ====================
 function CategoriesPanel({ categories, editingCategory, setEditingCategory, onReload }) {
   const [form, setForm] = useState({ id: "", label: "" });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => {
     if (editingCategory) {
@@ -399,29 +698,91 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
     } else {
       setForm({ id: "", label: "" });
     }
+    setFieldErrors({});
   }, [editingCategory]);
+
+  const getFieldError = (name, value) => {
+    if (name === "id") {
+      if (!value.trim()) return "ID es requerido";
+      if (!/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]+$/.test(value)) return "Solo letras y espacios";
+      if (!editingCategory && categories.some((cat) => cat.id === value)) return "Este ID ya existe";
+    }
+
+    if (name === "label") {
+      if (!value.trim()) return "Nombre visible es requerido";
+      if (!/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]+$/.test(value)) return "Solo letras y espacios";
+    }
+
+    return "";
+  };
+
+  const validateAll = () => {
+    const errors = {};
+    ["id", "label"].forEach((field) => {
+      const err = getFieldError(field, form[field] || "");
+      if (err) errors[field] = err;
+    });
+    return errors;
+  };
+
+  const isFormValid = () => {
+    const errors = validateAll();
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    // Solo permitir letras, espacios, guiones y acentos
+    if (value !== "" && !/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]*$/.test(value)) return;
+
+    setForm((f) => ({ ...f, [name]: value }));
+
+    const fieldError = getFieldError(name, value);
+    setFieldErrors((errs) => ({ ...errs, [name]: fieldError }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    const errors = validateAll();
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingCategory) {
         await updateCategory(editingCategory.id, { label: form.label });
+        setSuccessMessage("LA CATEGORIA SE HA ACTUALIZADO CON EXITO");
       } else {
         await createCategory(form);
+        setSuccessMessage("LA CATEGORIA SE HA AGREGADO CON EXITO");
       }
+      setShowSuccessModal(true);
       setEditingCategory(null);
-      await onReload();
+      setForm({ id: "", label: "" });
+      setFieldErrors({});
+      setSaving(false);
+
+      setTimeout(async () => {
+        try {
+          await onReload();
+        } catch (reloadErr) {
+          console.error("Error al recargar datos:", reloadErr);
+        }
+      }, 1500);
+
     } catch (err) {
       setError(err.message);
-    } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta categoría y todos sus platos?")) return;
+    if (!window.confirm("Eliminar esta categoria y todos sus platos?")) return;
     try {
       await deleteCategory(id);
       await onReload();
@@ -430,10 +791,18 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
     }
   };
 
+  const formValid = isFormValid();
+
   return (
     <div>
+      <SuccessModal
+        isOpen={showSuccessModal}
+        message={successMessage}
+        onClose={() => setShowSuccessModal(false)}
+      />
+
       <div className={styles.panelHeader}>
-        <h2>{editingCategory ? "Editar Categoría" : "Agregar Categoría"}</h2>
+        <h2>{editingCategory ? "Editar Categoria" : "Agregar Categoria"}</h2>
       </div>
 
       <form className={styles.formRow} onSubmit={handleSubmit}>
@@ -442,28 +811,44 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
         <label className={styles.label}>
           ID
           <input
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.id ? styles.inputError : ""}`}
+            name="id"
             value={form.id}
-            onChange={(e) => setForm((f) => ({ ...f, id: e.target.value }))}
+            onChange={handleChange}
             required
             disabled={!!editingCategory}
             placeholder="ej: Bebidas"
           />
+          {fieldErrors.id ? (
+            <span className={styles.helperError}>{fieldErrors.id}</span>
+          ) : (
+            <span className={styles.helperText}>Solo letras y espacios</span>
+          )}
         </label>
 
         <label className={styles.label}>
           Nombre visible
           <input
-            className={styles.input}
+            className={`${styles.input} ${fieldErrors.label ? styles.inputError : ""}`}
+            name="label"
             value={form.label}
-            onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
+            onChange={handleChange}
             required
             placeholder="ej: Bebidas y Jugos"
           />
+          {fieldErrors.label ? (
+            <span className={styles.helperError}>{fieldErrors.label}</span>
+          ) : (
+            <span className={styles.helperText}>Solo letras y espacios</span>
+          )}
         </label>
 
         <div className={styles.formActions}>
-          <button className={styles.btnPrimary} type="submit" disabled={saving}>
+          <button 
+            className={styles.btnPrimary} 
+            type="submit" 
+            disabled={saving || !formValid}
+          >
             {saving ? "Guardando..." : editingCategory ? "Actualizar" : "Crear"}
           </button>
           {editingCategory && (

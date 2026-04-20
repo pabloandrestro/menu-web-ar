@@ -7,6 +7,8 @@ const path = require("path");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const rateLimit = require("express-rate-limit");
+const multer = require("multer");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -25,8 +27,45 @@ if (!JWT_SECRET) {
 
 const jwtSecret = JWT_SECRET || "dev-only-insecure-secret";
 
+// --- Configuración de Multer para subida de imágenes ---
+const uploadDir = path.join(__dirname, "..", "public", "assets", "IMG");
+
+// Crear directorio si no existe
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    // Generar nombre único: timestamp-hash.extensión
+    const ext = path.extname(file.originalname).toLowerCase();
+    const name = `${Date.now()}-${crypto.randomBytes(8).toString("hex")}${ext}`;
+    cb(null, name);
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  // Solo permitir imágenes
+  const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"];
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error("Solo se permiten imágenes (JPEG, PNG, WebP, GIF)"));
+  }
+};
+
+const upload = multer({
+  storage,
+  fileFilter,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB máximo
+});
+
 // --- Helpers de validación ---
 const SAFE_PATH_RE = /^\/assets\/(modelosAR|IMG)\//;
+const CLOUDINARY_HOST = "res.cloudinary.com";
 
 function isSafePath(p) {
   if (!p) return true; // vacío es permitido
@@ -34,6 +73,37 @@ function isSafePath(p) {
   if (p.includes("..")) return false;
   if (!p.startsWith("/")) return false;
   return SAFE_PATH_RE.test(p);
+}
+
+function isCloudinaryUploadUrl(value, resourceType) {
+  if (typeof value !== "string" || !value.trim()) return false;
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== "https:") return false;
+    if (parsed.hostname !== CLOUDINARY_HOST) return false;
+
+    const pathName = parsed.pathname || "";
+    if (resourceType) {
+      return pathName.includes(`/${resourceType}/upload/`);
+    }
+
+    return pathName.includes("/upload/");
+  } catch {
+    return false;
+  }
+}
+
+function isSafeImageRef(value) {
+  return isSafePath(value) || isCloudinaryUploadUrl(value, "image");
+}
+
+function isSafeModelSrc(value) {
+  return (
+    isSafePath(value) ||
+    isCloudinaryUploadUrl(value, "raw") ||
+    isCloudinaryUploadUrl(value, "image")
+  );
 }
 
 function isNonEmptyString(val) {
@@ -49,13 +119,48 @@ function isValidPrice(val) {
   return typeof val === "string" && val.trim().length > 0;
 }
 
+function isValidModeloId(id) {
+  return typeof id === "string" && /^[a-zA-Z0-9_-]+$/.test(id);
+}
+
+function resolveModelAR(modeloId, modelos) {
+  if (!modeloId) return "";
+  const modelo = (modelos || []).find((m) => m.id === modeloId);
+  return modelo ? modelo.src : "";
+}
+
+function resolveMenuItems(items, modelos) {
+  return items.map((item) => ({
+    ...item,
+    modelAR: resolveModelAR(item.modelAR, modelos),
+  }));
+}
+
 // Archivos estáticos (salida compilada de Vite)
 const frontendPath = path.join(__dirname, "../dist");
 app.use(express.static(frontendPath));
 
+// Servir archivos estáticos de public (para las imágenes subidas)
+app.use("/assets", express.static(path.join(__dirname, "..", "public", "assets")));
+
 function initAdmin() {
+  let needsInit = false;
+
   if (!fs.existsSync(ADMIN_FILE)) {
-    const defaultEmail = process.env.ADMIN_DEFAULT_EMAIL || "Administrador@Hublab.cl";
+    needsInit = true;
+  } else {
+    try {
+      const existing = JSON.parse(fs.readFileSync(ADMIN_FILE, "utf-8"));
+      if (!existing.username || !existing.password) {
+        needsInit = true;
+      }
+    } catch {
+      needsInit = true;
+    }
+  }
+
+  if (needsInit) {
+    const defaultEmail = process.env.ADMIN_DEFAULT_EMAIL || "admin@hublab.com";
     const defaultPassword = process.env.ADMIN_DEFAULT_PASSWORD;
 
     if (!defaultPassword) {
@@ -78,7 +183,14 @@ function initAdmin() {
 // --- Funciones auxiliares ---
 function readData() {
   const raw = fs.readFileSync(DATA_FILE, "utf-8");
-  return JSON.parse(raw);
+  const data = JSON.parse(raw);
+
+  if (!Array.isArray(data.categories)) data.categories = [];
+  if (!Array.isArray(data.modelos)) data.modelos = [];
+  if (!Array.isArray(data.imagenes)) data.imagenes = [];
+  if (!Array.isArray(data.menuItems)) data.menuItems = [];
+
+  return data;
 }
 
 function writeData(data) {
@@ -87,7 +199,7 @@ function writeData(data) {
 
 // --- Middleware ---
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
 // Limitador de intentos para auth (15 intentos por ventana de 15 minutos)
 const loginLimiter = rateLimit({
@@ -149,7 +261,10 @@ app.get("/api/health", (_req, res) => {
 
 app.get("/api/menu", (_req, res) => {
   const data = readData();
-  res.json(data);
+  res.json({
+    ...data,
+    menuItems: resolveMenuItems(data.menuItems, data.modelos),
+  });
 });
 
 app.get("/api/categories", (_req, res) => {
@@ -157,9 +272,19 @@ app.get("/api/categories", (_req, res) => {
   res.json(data.categories);
 });
 
+app.get("/api/modelos", (_req, res) => {
+  const data = readData();
+  res.json(data.modelos || []);
+});
+
+app.get("/api/imagenes", (_req, res) => {
+  const data = readData();
+  res.json(data.imagenes || []);
+});
+
 app.get("/api/menu-items", (_req, res) => {
   const data = readData();
-  res.json(data.menuItems);
+  res.json(resolveMenuItems(data.menuItems, data.modelos));
 });
 
 // ========================
@@ -188,6 +313,117 @@ app.get("/api/auth/verify", authMiddleware, (req, res) => {
 // ========================
 // RUTAS DE ADMIN (protegidas)
 // ========================
+
+// --- Upload de Imágenes ---
+app.post("/api/admin/upload-image", authMiddleware, (req, res) => {
+  upload.single("image")(req, res, (err) => {
+    if (err) {
+      if (err instanceof multer.MulterError) {
+        if (err.code === "LIMIT_FILE_SIZE") {
+          return res.status(400).json({ error: "La imagen es muy grande (máximo 5MB)" });
+        }
+        return res.status(400).json({ error: "Error al subir la imagen" });
+      }
+      return res.status(400).json({ error: err.message || "Error al subir la imagen" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No se subió ninguna imagen" });
+    }
+
+    // Devolver la ruta relativa para guardar en la BD
+    const imagePath = `/assets/IMG/${req.file.filename}`;
+    res.json({ image: imagePath });
+  });
+});
+
+// --- Registrar Modelos (Cloudinary u origen permitido) ---
+app.post("/api/admin/modelos", authMiddleware, (req, res) => {
+  const { id, name, label, url, src, secure_url, secureUrl } = req.body || {};
+
+  const modeloId = typeof (id || name) === "string" ? (id || name).trim() : "";
+  const modeloSrc =
+    typeof (url || src || secure_url || secureUrl) === "string"
+      ? (url || src || secure_url || secureUrl).trim()
+      : "";
+  const modeloLabel =
+    typeof (label || name || modeloId) === "string" ? (label || name || modeloId).trim() : "";
+
+  if (!isValidModeloId(modeloId)) {
+    return res.status(400).json({ error: "id de modelo invalido (solo letras, numeros, guion y guion bajo)" });
+  }
+
+  if (!isNonEmptyString(modeloLabel)) {
+    return res.status(400).json({ error: "label es requerido" });
+  }
+
+  if (!isNonEmptyString(modeloSrc)) {
+    return res.status(400).json({ error: "url es requerida" });
+  }
+
+  if (!isSafeModelSrc(modeloSrc)) {
+    return res.status(400).json({ error: "URL de modelo no permitida" });
+  }
+
+  const data = readData();
+  if ((data.modelos || []).find((m) => m.id === modeloId)) {
+    return res.status(409).json({ error: "Modelo con ese id ya existe" });
+  }
+
+  const newModelo = {
+    id: modeloId,
+    label: modeloLabel,
+    src: modeloSrc,
+  };
+
+  data.modelos.push(newModelo);
+  writeData(data);
+  res.status(201).json(newModelo);
+});
+
+// --- Registrar Imágenes (Cloudinary u origen permitido) ---
+app.post("/api/admin/imagenes", authMiddleware, (req, res) => {
+  const { id, name, label, url, src, secure_url, secureUrl } = req.body || {};
+
+  const imagenId = typeof (id || name) === "string" ? (id || name).trim() : "";
+  const imagenSrc =
+    typeof (url || src || secure_url || secureUrl) === "string"
+      ? (url || src || secure_url || secureUrl).trim()
+      : "";
+  const imagenLabel =
+    typeof (label || name || imagenId) === "string" ? (label || name || imagenId).trim() : "";
+
+  if (!isValidId(imagenId)) {
+    return res.status(400).json({ error: "id de imagen invalido (solo letras, numeros, guion y guion bajo)" });
+  }
+
+  if (!isNonEmptyString(imagenLabel)) {
+    return res.status(400).json({ error: "label es requerido" });
+  }
+
+  if (!isNonEmptyString(imagenSrc)) {
+    return res.status(400).json({ error: "url es requerida" });
+  }
+
+  if (!isSafeImageRef(imagenSrc)) {
+    return res.status(400).json({ error: "URL de imagen no permitida" });
+  }
+
+  const data = readData();
+  if ((data.imagenes || []).find((img) => img.id === imagenId)) {
+    return res.status(409).json({ error: "Imagen con ese id ya existe" });
+  }
+
+  const newImagen = {
+    id: imagenId,
+    label: imagenLabel,
+    src: imagenSrc,
+  };
+
+  data.imagenes.push(newImagen);
+  writeData(data);
+  res.status(201).json(newImagen);
+});
 
 // --- Categorías ---
 app.get("/api/admin/categories", authMiddleware, (_req, res) => {
@@ -246,7 +482,7 @@ app.get("/api/admin/items", authMiddleware, (_req, res) => {
 });
 
 app.post("/api/admin/items", authMiddleware, (req, res) => {
-  const { id, category, name, description, price, image, modelAR } = req.body;
+  const { id, category, name, description, price, image, modelAR, ingredients } = req.body;
   if (!isValidId(id)) {
     return res.status(400).json({ error: "id invalido (solo letras, numeros, guion y guion bajo)" });
   }
@@ -259,14 +495,17 @@ app.post("/api/admin/items", authMiddleware, (req, res) => {
   if (!isValidPrice(price)) {
     return res.status(400).json({ error: "price es requerido" });
   }
-  if (image && !isSafePath(image)) {
-    return res.status(400).json({ error: "Ruta de imagen no permitida" });
+  if (image && !isSafeImageRef(image)) {
+    return res.status(400).json({ error: "Imagen no permitida" });
   }
-  if (modelAR && !isSafePath(modelAR)) {
-    return res.status(400).json({ error: "Ruta de modelo AR no permitida" });
+  if (modelAR && !isValidModeloId(modelAR)) {
+    return res.status(400).json({ error: "modelAR debe ser un id de modelo valido" });
   }
 
   const data = readData();
+  if (modelAR && !(data.modelos || []).find((m) => m.id === modelAR)) {
+    return res.status(400).json({ error: "Modelo AR no encontrado" });
+  }
   if (data.menuItems.find((item) => item.id === id)) {
     return res.status(409).json({ error: "Item con ese id ya existe" });
   }
@@ -279,6 +518,7 @@ app.post("/api/admin/items", authMiddleware, (req, res) => {
     price: price.trim(),
     image: image || "/assets/IMG/comida.jfif",
     modelAR: modelAR || "",
+    ingredients: Array.isArray(ingredients) ? ingredients : [],
   };
   data.menuItems.push(newItem);
   writeData(data);
@@ -290,13 +530,19 @@ app.put("/api/admin/items/:id", authMiddleware, (req, res) => {
   const item = data.menuItems.find((i) => i.id === req.params.id);
   if (!item) return res.status(404).json({ error: "Item no encontrado" });
 
-  const { category, name, description, price, image, modelAR } = req.body;
+  const { category, name, description, price, image, modelAR, ingredients } = req.body;
 
-  if (image !== undefined && image && !isSafePath(image)) {
-    return res.status(400).json({ error: "Ruta de imagen no permitida" });
+  if (image !== undefined && image && !isSafeImageRef(image)) {
+    return res.status(400).json({ error: "Imagen no permitida" });
   }
-  if (modelAR !== undefined && modelAR && !isSafePath(modelAR)) {
-    return res.status(400).json({ error: "Ruta de modelo AR no permitida" });
+  if (modelAR !== undefined && modelAR && !isValidModeloId(modelAR)) {
+    return res.status(400).json({ error: "modelAR debe ser un id de modelo valido" });
+  }
+  if (modelAR !== undefined && modelAR) {
+    const data2 = readData();
+    if (!(data2.modelos || []).find((m) => m.id === modelAR)) {
+      return res.status(400).json({ error: "Modelo AR no encontrado" });
+    }
   }
 
   if (category) item.category = category.trim();
@@ -305,6 +551,7 @@ app.put("/api/admin/items/:id", authMiddleware, (req, res) => {
   if (price) item.price = price.trim();
   if (image) item.image = image;
   if (modelAR !== undefined) item.modelAR = modelAR;
+  if (ingredients !== undefined) item.ingredients = Array.isArray(ingredients) ? ingredients : [];
 
   writeData(data);
   res.json(item);
