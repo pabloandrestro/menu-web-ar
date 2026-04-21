@@ -5,6 +5,7 @@ import MenuSection from "./components/MenuSection";
 import { MenuSkeleton } from "./components/MenuCardSkeleton";
 import ReservationSection from "./components/ReservationSection";
 import Footer from "./components/Footer";
+import { supabase } from "./utils/supabase";
 import styles from "./App.module.css";
 
 function App() {
@@ -12,7 +13,8 @@ function App() {
   const [menuItems, setMenuItems] = useState([]);
   const [activeCategory, setActiveCategory] = useState("");
   const [loading, setLoading] = useState(true);
- useEffect(() => {
+
+  useEffect(() => {
     fetch("/api/menu")
       .then((res) => {
         if (!res.ok) throw new Error("Error al conectar con el servidor");
@@ -21,7 +23,7 @@ function App() {
       .then((data) => {
         setCategories(data.categories || []);
         setMenuItems(data.menuItems || []);
-        
+
         if (data.categories && data.categories.length > 0) {
           setActiveCategory(data.categories[0].id);
         }
@@ -79,6 +81,7 @@ function App() {
         </div>
 
         <ReservationSection />
+
       </main>
 
       <Footer />

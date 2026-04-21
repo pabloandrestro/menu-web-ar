@@ -40,17 +40,58 @@
       "src": "/assets/modelosAR/arrozConSalsa.glb"
     },
     {
-      "id": "Plato1",
-      "label": "Plato1",
-      "src": "https://res.cloudinary.com/djkppgn8m/raw/upload/v1776713805/models/zm1gjmtict3klpqqi85b"
+      "id": "burger",
+      "label": "Burger",
+      "src": "/assets/modelosAR/burger.glb"
     },
     {
-      "id": "ca2b319c-29ec-4e06-8f9d-234c42fcd6bc",
-      "label": "cube",
-      "src": "https://res.cloudinary.com/djkppgn8m/raw/upload/v1776713805/models/zm1gjmtict3klpqqi85b"
+      "id": "CuboRubik",
+      "label": "Cubo Rubik",
+      "src": "/assets/modelosAR/CuboRubik.glb"
+    },
+    {
+      "id": "Estatua",
+      "label": "Estatua",
+      "src": "/assets/modelosAR/Estatua.glb"
+    },
+    {
+      "id": "FideosEnPlato",
+      "label": "Fideos en Plato",
+      "src": "/assets/modelosAR/FideosEnPlato.glb"
+    },
+    {
+      "id": "Jueguete",
+      "label": "Juguete",
+      "src": "/assets/modelosAR/Jueguete.glb"
+    },
+    {
+      "id": "PanConHuevo",
+      "label": "Pan con Huevo",
+      "src": "/assets/modelosAR/PanConHuevo.glb"
+    },
+    {
+      "id": "PanConQueso",
+      "label": "Pan con Queso",
+      "src": "/assets/modelosAR/PanConQueso.glb"
+    },
+    {
+      "id": "Peluche",
+      "label": "Peluche",
+      "src": "/assets/modelosAR/Peluche.glb"
+    },
+    {
+      "id": "Plato1",
+      "label": "Plato 1",
+      "src": "/assets/modelosAR/Plato1.glb"
     }
   ],
-  "imagenes": [],
+  "imagenes": [
+    {
+      "id": "img_test_mo7uy9ii",
+      "label": "test",
+      "src": "https://res.cloudinary.com/dxpam0kqa/image/upload/v1776729634/uploads/fyths5evuov3lv6bvpmy.png"
+    }
+  ],
   "menuItems": [
     {
       "id": "ap-1",
@@ -59,7 +100,7 @@
       "description": "Empanaditas rellenas de mariscos frescos.",
       "price": "$11.990",
       "image": "/assets/IMG/comida.jfif",
-      "modelAR": "ca2b319c-29ec-4e06-8f9d-234c42fcd6bc"
+      "modelAR": "Plato1"
     },
     {
       "id": "ap-2",
@@ -483,6 +524,19 @@
       "price": "$7.990",
       "image": "/assets/IMG/comida.jfif",
       "modelAR": "Plato1"
+    },
+    {
+      "id": "ap-10",
+      "category": "Aperitivos",
+      "name": "fideostest",
+      "description": "test imagen 64x64",
+      "price": "11.111",
+      "image": "https://res.cloudinary.com/dxpam0kqa/image/upload/v1776729634/uploads/fyths5evuov3lv6bvpmy.png",
+      "modelAR": "arrozConSalsa",
+      "ingredients": [
+        "tomate",
+        "fideos"
+      ]
     }
   ]
 }

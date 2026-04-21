@@ -236,6 +236,32 @@ function ImageModal({ isOpen, imagenes, onSelectImage, onClose }) {
   );
 }
 
+function generateItemId(itemsList) {
+  const nums = itemsList
+    .map((i) => {
+      const m = String(i.id).match(/^item-(\d+)$/);
+      return m ? parseInt(m[1], 10) : 0;
+    })
+    .filter((n) => n > 0);
+  const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+  return `item-${next}`;
+}
+
+function generateCategoryId(categoriesList, label) {
+  const base = label
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "cat";
+  let id = base;
+  let i = 2;
+  while (categoriesList.some((c) => c.id === id)) {
+    id = `${base}-${i++}`;
+  }
+  return id;
+}
+
 function ItemsPanel({
   items,
   allItems,
@@ -293,12 +319,6 @@ function ItemsPanel({
   }, [editingItem, categories]);
 
   const getFieldError = (name, value) => {
-    if (name === "id") {
-      if (!value.trim()) return "ID es requerido";
-      if (!/^[a-zA-Z0-9_-]+$/.test(value)) return "Solo letras, numeros, guion y guion bajo";
-      if (!editingItem && itemsList.some((item) => item.id === value)) return "Este ID ya existe";
-    }
-
     if (name === "category") {
       if (!value) return "Categoria es requerida";
     }
@@ -328,7 +348,7 @@ function ItemsPanel({
 
   const validateAll = () => {
     const errors = {};
-    ["id", "category", "name", "price", "description", "image"].forEach((field) => {
+    ["category", "name", "price", "description", "image"].forEach((field) => {
       const err = getFieldError(field, form[field] || "");
       if (err) errors[field] = err;
     });
@@ -362,13 +382,32 @@ function ItemsPanel({
   };
 
   const handleAddIngredient = () => {
-    if (newIngredient.trim() && !form.ingredients.includes(newIngredient.trim())) {
-      setForm((f) => ({
+    const nextIngredients = newIngredient
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (nextIngredients.length === 0) return;
+
+    setForm((f) => {
+      const existingKeys = new Set(f.ingredients.map((item) => item.toLowerCase()));
+      const merged = [...f.ingredients];
+
+      for (const ingredient of nextIngredients) {
+        const key = ingredient.toLowerCase();
+        if (existingKeys.has(key)) continue;
+
+        existingKeys.add(key);
+        merged.push(ingredient);
+      }
+
+      return {
         ...f,
-        ingredients: [...f.ingredients, newIngredient.trim()],
-      }));
-      setNewIngredient("");
-    }
+        ingredients: merged,
+      };
+    });
+
+    setNewIngredient("");
   };
 
   const handleRemoveIngredient = (index) => {
@@ -400,7 +439,8 @@ function ItemsPanel({
         await updateItem(editingItem.id, form);
         setSuccessMessage("EL PLATO SE HA ACTUALIZADO CON EXITO");
       } else {
-        await createItem(form);
+        const payload = { ...form, id: generateItemId(itemsList) };
+        await createItem(payload);
         setSuccessMessage("EL PLATO SE HA AGREGADO CON EXITO");
       }
       setShowSuccessModal(true);
@@ -444,7 +484,6 @@ function ItemsPanel({
   };
 
   const formValid = isFormValid();
-  const selectedImageInLibrary = imagenes.some((img) => img.src === form.image);
 
   return (
     <div>
@@ -467,20 +506,6 @@ function ItemsPanel({
 
       <form ref={formRef} className={styles.formGrid} onSubmit={handleSubmit}>
         {error && <div className={styles.errorMsg}>{error}</div>}
-
-        <label className={styles.label}>
-          ID
-          <input
-            className={`${styles.input} ${fieldErrors.id ? styles.inputError : ""}`}
-            name="id"
-            value={form.id}
-            onChange={handleChange}
-            required
-            disabled={!!editingItem}
-            placeholder="ej: ap-7"
-          />
-          {fieldErrors.id && <span className={styles.helperError}>{fieldErrors.id}</span>}
-        </label>
 
         <label className={styles.label}>
           Categoria
@@ -757,13 +782,6 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
   }, [editingCategory]);
 
   const getFieldError = (name, value) => {
-    if (name === "id") {
-      if (!value.trim()) return "ID es requerido";
-      if (!/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]+$/.test(value)) return "Solo letras y espacios";
-      if (!editingCategory && categories.some((cat) => cat.id === value))
-        return "Este ID ya existe";
-    }
-
     if (name === "label") {
       if (!value.trim()) return "Nombre visible es requerido";
       if (!/^[a-zA-Z\s\-áéíóúñÁÉÍÓÚÑ]+$/.test(value)) return "Solo letras y espacios";
@@ -774,7 +792,7 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
 
   const validateAll = () => {
     const errors = {};
-    ["id", "label"].forEach((field) => {
+    ["label"].forEach((field) => {
       const err = getFieldError(field, form[field] || "");
       if (err) errors[field] = err;
     });
@@ -813,7 +831,8 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
         await updateCategory(editingCategory.id, { label: form.label });
         setSuccessMessage("LA CATEGORIA SE HA ACTUALIZADO CON EXITO");
       } else {
-        await createCategory(form);
+        const payload = { id: generateCategoryId(categories, form.label), label: form.label };
+        await createCategory(payload);
         setSuccessMessage("LA CATEGORIA SE HA AGREGADO CON EXITO");
       }
       setShowSuccessModal(true);
@@ -861,24 +880,6 @@ function CategoriesPanel({ categories, editingCategory, setEditingCategory, onRe
 
       <form className={styles.formRow} onSubmit={handleSubmit}>
         {error && <div className={styles.errorMsg}>{error}</div>}
-
-        <label className={styles.label}>
-          ID
-          <input
-            className={`${styles.input} ${fieldErrors.id ? styles.inputError : ""}`}
-            name="id"
-            value={form.id}
-            onChange={handleChange}
-            required
-            disabled={!!editingCategory}
-            placeholder="ej: Bebidas"
-          />
-          {fieldErrors.id ? (
-            <span className={styles.helperError}>{fieldErrors.id}</span>
-          ) : (
-            <span className={styles.helperText}>Solo letras y espacios</span>
-          )}
-        </label>
 
         <label className={styles.label}>
           Nombre visible
