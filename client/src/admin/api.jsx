@@ -1,4 +1,6 @@
-const API_URL = "/api"; // "http://localhost:3001/api" en local, /api en hosting
+const API_URL = import.meta.env.VITE_API_URL || "/api"; // "http://localhost:3001/api" en local, /api en hosting
+
+console.log(API_URL);
 
 function getHeaders() {
   const token = localStorage.getItem("admin_token");

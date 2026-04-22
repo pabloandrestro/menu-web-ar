@@ -5,7 +5,6 @@ import MenuSection from "./components/MenuSection";
 import { MenuSkeleton } from "./components/MenuCardSkeleton";
 import ReservationSection from "./components/ReservationSection";
 import Footer from "./components/Footer";
-import { supabase } from "./utils/supabase";
 import styles from "./App.module.css";
 
 function App() {
@@ -14,8 +13,15 @@ function App() {
   const [activeCategory, setActiveCategory] = useState("");
   const [loading, setLoading] = useState(true);
 
+  console.log(
+    import.meta.env.VITE_API_URL,
+    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
+    import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
+    import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER,
+  );
+
   useEffect(() => {
-    fetch("/api/menu")
+    fetch(`${import.meta.env.VITE_API_URL || ""}/menu`)
       .then((res) => {
         if (!res.ok) throw new Error("Error al conectar con el servidor");
         return res.json();
@@ -38,12 +44,11 @@ function App() {
 
   const filteredItems = useMemo(
     () => menuItems.filter((item) => item.category === activeCategory),
-    [activeCategory, menuItems]
+    [activeCategory, menuItems],
   );
 
   const activeLabel =
-    categories.find((category) => category.id === activeCategory)?.label ||
-    "Menu";
+    categories.find((category) => category.id === activeCategory)?.label || "Menu";
 
   return (
     <div className={styles.appShell}>
@@ -81,7 +86,6 @@ function App() {
         </div>
 
         <ReservationSection />
-
       </main>
 
       <Footer />
