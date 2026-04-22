@@ -13,13 +13,6 @@ function App() {
   const [activeCategory, setActiveCategory] = useState("");
   const [loading, setLoading] = useState(true);
 
-  console.log(
-    import.meta.env.VITE_API_URL,
-    import.meta.env.VITE_CLOUDINARY_CLOUD_NAME,
-    import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET,
-    import.meta.env.VITE_CLOUDINARY_UPLOAD_FOLDER,
-  );
-
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || ""}/menu`)
       .then((res) => {
