@@ -1,0 +1,177 @@
+.headerNavbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 15, 25, 0.92);
+  border-bottom: 1px solid rgba(212, 170, 99, 0.12);
+  backdrop-filter: blur(8px);
+}
+
+.navbarContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  height: 100px;
+  width: 100%;
+  min-width: 0;
+  gap: 1.5rem;
+}
+
+.navbarLogo {
+  width: 120px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0px 4px 12px rgba(212, 170, 99, 0.3));
+  flex-shrink: 0;
+  margin-right: auto;
+}
+
+.navbarLinks {
+  display: flex;
+  align-items: center;
+  gap: 2.5rem;
+  margin: 0;
+  list-style: none;
+  padding: 0;
+  min-width: 0;
+}
+
+.navbarLinks a {
+  color: rgba(212, 170, 99, 0.8);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  border-bottom: 2px solid transparent;
+  padding-bottom: 4px;
+  text-transform: uppercase;
+  font-size: 0.95rem;
+}
+
+.navbarLinks a:hover {
+  color: var(--r66-gold);
+  border-bottom-color: var(--r66-gold);
+  text-shadow: 0 0 8px rgba(212, 170, 99, 0.4);
+}
+
+.navbarSocials {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-left: 1.5rem;
+  border-left: 1px solid rgba(212, 170, 99, 0.3);
+  flex-shrink: 0;
+}
+
+.socialIconLink {
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(212, 170, 99, 0.7);
+  transition:
+    color 0.3s ease,
+    border-color 0.3s ease,
+    background 0.3s ease,
+    box-shadow 0.3s ease;
+  border: 1.5px solid rgba(212, 170, 99, 0.4);
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  padding: 0;
+  text-decoration: none;
+}
+
+.socialIconLink:hover {
+  color: var(--r66-gold);
+  border-color: var(--r66-gold);
+  background: rgba(212, 170, 99, 0.1);
+  box-shadow: 0 0 12px rgba(212, 170, 99, 0.3);
+}
+
+.socialIconLink svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  display: block;
+}
+
+@media (max-width: 900px) {
+  .navbarContent {
+    gap: 1rem;
+  }
+
+  .navbarLinks {
+    gap: 1.5rem;
+  }
+
+  .navbarLinks a {
+    font-size: 0.85rem;
+  }
+
+  .navbarSocials {
+    gap: 0.6rem;
+    padding-left: 1rem;
+  }
+
+  .socialIconLink {
+    width: 32px;
+    height: 32px;
+  }
+
+  .socialIconLink svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .navbarContent {
+    height: 75px;
+    padding: 0 1rem;
+    gap: 0.6rem;
+  }
+
+  .navbarLogo {
+    width: 60px;
+    flex: 0 0 auto;
+  }
+
+  .navbarLinks {
+    flex: 1;
+    gap: 0.85rem;
+    overflow-x: auto;
+    overflow-y: visible;
+    white-space: nowrap;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 0.15rem;
+    min-width: 0;
+  }
+
+  .navbarLinks::-webkit-scrollbar {
+    display: none;
+  }
+
+  .navbarLinks a {
+    font-size: 0.8rem;
+  }
+
+  .navbarSocials {
+    gap: 0.5rem;
+    padding-left: 0.8rem;
+  }
+
+  .socialIconLink {
+    width: 28px;
+    height: 28px;
+  }
+
+  .socialIconLink svg {
+    width: 14px;
+    height: 14px;
+  }
+}
